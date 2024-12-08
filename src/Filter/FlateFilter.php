@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -29,36 +31,33 @@ namespace acroforms\Filter;
 /**
  * Class for handling GZIP compressed data
  */
-class FlateFilter implements FilterInterface {
+class FlateFilter implements FilterInterface
+{
+    /**
+     * Method to decode GZIP compressed data.
+     *
+     * @param string $data    The compressed data.
+     * @return string         The uncompressed data
+     */
+    #[\Override]
+    public function decode($data)
+    {
+        $data = gzuncompress($data);
+        if (!$data) {
+            throw new \Exception('FlateFilterDecode: invalid stream data.');
+        }
+        return $data;
+    }
 
-	private $data = null;
-	private $dataLength = 0;
-
-	/**
-	 * Method to decode GZIP compressed data.
-	 *
-	 * @param string $data    The compressed data.
-	 * @return string         The uncompressed data
-	 */
-	public function decode($data) {
-		$this->data = $data;
-		$this->dataLength = strlen($data);
-		$data = gzuncompress($data);
-		if(!$data) {
-			throw new \Exception("FlateFilterDecode: invalid stream data.");
-		}
-		return $data;
-	}
-
-	/**
-	 * Method to encode data into GZIP compressed.
-	 *
-	 * @param string $data    The data.
-	 * @return string|false   The compressed data
-	 */
-	public function encode($data) {
-		return gzcompress($data, 9);
-	}
+    /**
+     * Method to encode data into GZIP compressed.
+     *
+     * @param string $data    The data.
+     * @return string|false   The compressed data
+     */
+    #[\Override]
+    public function encode($data)
+    {
+        return gzcompress($data, 9);
+    }
 }
-
-?>

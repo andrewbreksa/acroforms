@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -32,44 +34,41 @@ use acroforms\Utils\StringToolBox;
 /**
  * Class to parse the content of a FDF file.
  */
-class FDFParser {
+class FDFParser
+{
+    public function __construct(private readonly FDFDocument $fdfDocument) {}
 
-	private $fdfDocument = null; 
-
-	public function __construct(FDFDocument $fdfDocument) {
-		$this->fdfDocument = $fdfDocument;
-	}
-
-	/**
-	 * Parses the content of a FDF file and saved extracted field data 
-	 *
-	 * @access public
-	 */
-	public function parse() {
-		$beg = chr(254);
-		$end = chr(255);
-		$content = str_replace(["<<", ">>"], [$beg, $end], StringToolBox::protectParentheses($this->fdfDocument->getContent())); 
-		if (preg_match_all("/" . $beg . "([^" . $end . "]+)" . $end . "/", $content, $matches)) {
-			$fMax = count($matches[0]);
-			for ($f = 0; $f < $fMax; $f++) {
-				$field = trim(preg_replace("/[\r\n]/", " ", $matches[1][$f]));
-				if (preg_match("#/T\s*\(([^\)]+)\)#", $field, $t)) {
-					$key = StringToolBox::unProtectParentheses(preg_replace("/\[\d+\]$/", "", $t[1]));
-					if (($fieldObject = $this->fdfDocument->getPdfdocument()->getField($key)) !== null) {
-						$field = trim(str_replace($t[0], "", $field));
-						if (preg_match("#/V\s*\(([^\)]*)\)#", $field, $v) || preg_match("#/V\s*/(.*)#", $field, $v)) {
-							$value = StringToolBox::unProtectParentheses($v[1]);
-							if ($fieldObject->getType() == 'Btn') {
-								$this->fdfDocument->setButton($key, $value);
-							} else {
-								$this->fdfDocument->setField($key, $value);
-							}
-						}
-					}
-				}
-			}
-		}
-		$this->fdfDocument->setParseNeeded(false);
-	}
+    /**
+     * Parses the content of a FDF file and saved extracted field data
+     *
+     * @access public
+     */
+    public function parse()
+    {
+        $beg     = chr(254);
+        $end     = chr(255);
+        $content = str_replace(['<<', '>>'], [$beg, $end], StringToolBox::protectParentheses($this->fdfDocument->getContent()));
+        if (preg_match_all('/' . $beg . '([^' . $end . ']+)' . $end . '/', $content, $matches)) {
+            $fMax = count($matches[0]);
+            for ($f = 0; $f < $fMax; $f++) {
+                $field = trim((string) preg_replace("/[\r\n]/", ' ', $matches[1][$f]));
+                if (preg_match("#/T\s*\(([^\)]+)\)#", $field, $t)) {
+                    $key = StringToolBox::unProtectParentheses(preg_replace("/\[\d+\]$/", '', $t[1]));
+                    if (($fieldObject = $this->fdfDocument->getPdfdocument()->getField($key)) !== null) {
+                        $field = trim(str_replace($t[0], '', $field));
+                        if (preg_match("#/V\s*\(([^\)]*)\)#", $field, $v) || preg_match("#/V\s*/(.*)#", $field, $v)) {
+                            $value = StringToolBox::unProtectParentheses($v[1]);
+                            if ($fieldObject->getType() == 'Btn') {
+                                $this->fdfDocument->setButton($key, $value);
+                            } else {
+                                $this->fdfDocument->setField($key, $value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $this->fdfDocument->setParseNeeded(false);
+    }
 
 }

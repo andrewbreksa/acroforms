@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -29,20 +31,21 @@ namespace acroforms\Filter;
 /**
  * Interface for filters
  */
-interface FilterInterface {
-	/**
-	 * Decodes a string.
-	 *
-	 * @param string $data The input string
-	 * @return string
-	 */
-	public function decode($data);
+interface FilterInterface
+{
+    /**
+     * Decodes a string.
+     *
+     * @param string $data The input string
+     * @return string
+     */
+    public function decode($data);
 
-	/**
-	 * Encodes a string.
-	 *
-	 * @param string $data The input string
-	 * @return string
-	 */
-	public function encode($data);
+    /**
+     * Encodes a string.
+     *
+     * @param string $data The input string
+     * @return string
+     */
+    public function encode($data);
 }

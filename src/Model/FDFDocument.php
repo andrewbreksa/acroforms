@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -31,68 +33,75 @@ use acroforms\Utils\StringToolBox;
 /**
  * Class representing the lines of a FDF file.
  */
-class FDFDocument extends BaseDocument {
+class FDFDocument extends BaseDocument
+{
+    private $fields      = [];
+    private $buttons     = [];
+    private $parseNeeded = true;
 
-	private $pdfdocument = null;
-	private $fields = [];
-	private $buttons = [];
-	private $parseNeeded = true;
+    public function __construct(private readonly PDFDocument $pdfdocument) {}
 
-	public function __construct(PDFDocument $pdfdocument) {
-		$this->pdfdocument = $pdfdocument;
-	}
+    /**
+     * Loads form data
+     *
+     * @param array $data the content
+     **/
+    public function setFormData($data)
+    {
+        foreach ($data['text'] as $fieldname => $value) {
+            $this->setField($fieldname, $value);
+        }
+        foreach ($data['button'] as $fieldname => $value) {
+            $this->setButton($fieldname, $value);
+        }
+        $this->parseNeeded = false;
+    }
 
-	/**
-	 * Loads form data
-	 *
-	 * @param array $data the content
-	 **/
-	public function setFormData($data) {
-		foreach($data['text'] as $fieldname => $value) {
-			$this->setField($fieldname, $value);
-		}
-		foreach($data['button'] as $fieldname => $value) {
-			$this->setButton($fieldname, $value);
-		}
-		$this->parseNeeded = false;
-	}
+    public function getPdfdocument()
+    {
+        return $this->pdfdocument;
+    }
 
-	public function getPdfdocument() {
-		return $this->pdfdocument;
-	}
+    public function getFields()
+    {
+        return $this->fields;
+    }
 
-	public function getFields() {
-		return $this->fields;
-	}
+    public function setFields(&$fields)
+    {
+        $this->fields = $fields;
+    }
 
-	public function setFields(&$fields) {
-		$this->fields = $fields;
-	}
+    public function setField($fieldname, $value)
+    {
+        $fieldname                = StringToolBox::normalizeFieldName($fieldname);
+        $this->fields[$fieldname] = $value;
+    }
 
-	public function setField($fieldname, $value) {
-		$fieldname = StringToolBox::normalizeFieldName($fieldname);
-		$this->fields[$fieldname] = $value;
-	}
+    public function getButtons()
+    {
+        return $this->buttons;
+    }
 
-	public function getButtons() {
-		return $this->buttons;
-	}
+    public function setButtons(&$buttons)
+    {
+        $this->buttons = $buttons;
+    }
 
-	public function setButtons(&$buttons) {
-		$this->buttons = $buttons;
-	}
+    public function setButton($fieldname, $value)
+    {
+        $fieldname                 = StringToolBox::normalizeFieldName($fieldname);
+        $this->buttons[$fieldname] = $value;
+    }
 
-	public function setButton($fieldname, $value) {
-		$fieldname = StringToolBox::normalizeFieldName($fieldname);
-		$this->buttons[$fieldname] = $value;
-	}
+    public function isParseNeeded()
+    {
+        return $this->parseNeeded;
+    }
 
-	public function isParseNeeded() {
-		return $this->parseNeeded;
-	}
-
-	public function setParseNeeded($parseNeeded) {
-		$this->parseNeeded = $parseNeeded;
-	}
+    public function setParseNeeded($parseNeeded)
+    {
+        $this->parseNeeded = $parseNeeded;
+    }
 
 }

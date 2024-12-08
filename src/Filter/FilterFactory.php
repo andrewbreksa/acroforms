@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -29,49 +31,37 @@ namespace acroforms\Filter;
 /**
  * Factory for filters
  */
-class FilterFactory {
+class FilterFactory
+{
+    public static function getAvailableFilters()
+    {
+        return [
+            'ASCIIHexDecode',
+            'FlateDecode',
+            'LZWDecode',
+            'Standard',
+            'ASCII85Decode',
+            'RunLengthDecode',
+        ];
+    }
 
-	public static function getAvailableFilters() {
-		return [
-			"ASCIIHexDecode",
-			"FlateDecode",
-			"LZWDecode",
-			"Standard",
-			"ASCII85Decode",
-			"RunLengthDecode"
-		];
-	}
-
-	/**
-	 * Get a filter class by its name
-	 *
-	 * @param string $name a string matching one of the supported default filters
-	 * @return \acroforms\Filter\FilterInterface the wished filter class to access the stream
-	 **/
-	public static function getFilter($name) : FilterInterface{
-		switch($name) {
-			case "LZWDecode":
-				$filter = new LZWFilter();
-				break;
-			case "ASCIIHexDecode": 
-				$filter = new ASCIIHexFilter();
-				break;
-			case "ASCII85Decode": 
-				$filter = new ASCII85Filter();
-				break;
-			case "FlateDecode":
-				$filter = new FlateFilter();
-				break;
-			case "RunLengthDecode":
-				$filter = new RunLengthFilter();
-				break;
-			case "Standard": //Raw
-				$filter = new StandardFilter();
-				break;
-			default:
-				throw new \Exception(sprintf("FilterFactory: getFilter cannot open stream of object because filter '%s' is not supported.", $name));
-		}
-		return $filter;
-	}
+    /**
+     * Get a filter class by its name
+     *
+     * @param string $name a string matching one of the supported default filters
+     * @return FilterInterface the wished filter class to access the stream
+     **/
+    public static function getFilter($name): FilterInterface
+    {
+        return match ($name) {
+            'LZWDecode'       => new LZWFilter(),
+            'ASCIIHexDecode'  => new ASCIIHexFilter(),
+            'ASCII85Decode'   => new ASCII85Filter(),
+            'FlateDecode'     => new FlateFilter(),
+            'RunLengthDecode' => new RunLengthFilter(),
+            'Standard'        => new StandardFilter(),
+            default           => throw new \Exception(sprintf("FilterFactory: getFilter cannot open stream of object because filter '%s' is not supported.", $name)),
+        };
+    }
 
 }

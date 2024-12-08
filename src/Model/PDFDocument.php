@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -26,203 +28,227 @@ THE SOFTWARE.
 
 namespace acroforms\Model;
 
-use acroforms\Filter\FilterFactory;
 use acroforms\Utils\PDFtkBridge;
 use acroforms\Utils\StringToolBox;
 
 /**
  * Class representing the lines of a PDF file.
  */
-class PDFDocument extends BaseDocument {
+class PDFDocument extends BaseDocument
+{
+    private $needAppearancesTrue = false;
+    private $entries             = [];
+    private $fields              = [];
+    private $metadata            = [];
+    private $crossReference;
+    private $positions   = []; 				// stores what object id is at a given position n ($positions[n]=<obj_id>)
+    private $offsets     = [];					// offsets for objects, index is the object's id, starting at 1
+    private $shifts      = [];					// shifts of objects in the order positions they appear in the pdf, starting at 0.
+    private $globalShift = 0;
 
-	private $needAppearancesTrue = false; 
-	private $entries = [];
-	private $fields = [];
-	private $metadata = [];
-	private $crossReference = null;
-	private $positions = []; 				// stores what object id is at a given position n ($positions[n]=<obj_id>)
-	private $offsets = [];					// offsets for objects, index is the object's id, starting at 1
-	private $shifts = [];					// shifts of objects in the order positions they appear in the pdf, starting at 0.
-	private $globalShift = 0;				// overall size of the file that changes as the size of the object values changes
+    public function __construct() {}
 
-	private $converter = null;
+    /**
+     * Loads the content of a PDF file
+     *
+     * @param string $filename the filename of the file
+     * @param string $pdftk the full path of the pdftk executable
+     **/
+    #[\Override]
+    public function load($filename, $pdftk = '')
+    {
+        parent::load($filename);
+        if ($pdftk != '' && $this->isLinearized()) {
+            $this->unLinearize($filename, $pdftk);
+        }
+        $this->check();
+    }
 
-	public function __construct() {
-		$this->converter = FilterFactory::getFilter("ASCIIHexDecode");
-	}
+    /**
+     * Loads the content of a string
+     *
+     * @param string $content the content
+     **/
+    #[\Override]
+    public function setContent($content)
+    {
+        parent::setContent($content);
+        $this->check();
+    }
 
-	/**
-	 * Loads the content of a PDF file
-	 *
-	 * @param string $filename the filename of the file
-	 * @param string $pdftk the full path of the pdftk executable
-	 **/
-	public function load($filename, $pdftk = "") {
-		parent::load($filename);
-		if ($pdftk != "" && $this->isLinearized()) {
-			$this->unLinearize($filename, $pdftk);
-		}
-		$this->check();
-	}
+    protected function check()
+    {
+        if ($this->hasObjectStreams()) {
+            throw new \Exception('PDFDocument: Object streams are not supported');
+        }
+        if ($this->isLinearized()) {
+            throw new \Exception('PDFDocument: Fast Web View mode is not supported');
+        }
+        if ($this->hasIncrementalUpdates()) {
+            throw new \Exception('PDFDocument: Incremental updates are not supported');
+        }
+        $this->needAppearancesTrue = (str_contains((string) $this->content, '/NeedAppearances true'));
+        $this->entries             = explode("\n", (string) $this->content);
+    }
 
-	/**
-	 * Loads the content of a string
-	 *
-	 * @param string $content the content
-	 **/
-	public function setContent($content) {
-		parent::setContent($content);
-		$this->check();
-	}
+    protected function unLinearize($filename, $cmd)
+    {
+        if (PDFtkBridge::is_windows()) {
+            $cmd = sprintf('cd %s && %s', escapeshellarg(dirname((string) $cmd)), basename((string) $cmd));
+        }
+        $temp = tempnam(sys_get_temp_dir(), 'acroform_');
+        if ($temp === false) {
+            throw new \Exception("PDFDocument: pdftk failed because it's impossible to create a temporary file");
+        }
+        $pdfOut = $temp . '.pdf';
+        rename($temp, $pdfOut);
+        $cmdline = sprintf('%s "%s" output "%s"', $cmd, $filename, $pdfOut);
+        $ret     = PDFtkBridge::run($cmdline, $pdfOut);
+        if ($ret['success']) {
+            parent::load($ret['output']);
+        }
+        @unlink($ret['output']);
 
-	protected function check() {
-		if ($this->hasObjectStreams()) {
-			throw new \Exception('PDFDocument: Object streams are not supported');
-		}
-		if ($this->isLinearized()) {
-			throw new \Exception('PDFDocument: Fast Web View mode is not supported');
-		}
-		if ($this->hasIncrementalUpdates()) {
-			throw new \Exception('PDFDocument: Incremental updates are not supported');
-		}
-		$this->needAppearancesTrue = (strpos($this->content, '/NeedAppearances true') !== false);
-		$this->entries = explode("\n", $this->content);
-	}
+    }
 
-	protected function unLinearize($filename, $cmd) {
-		$err = '';
-		if (PDFtkBridge::is_windows()) {
-			$cmd = sprintf('cd %s && %s', escapeshellarg(dirname($cmd)), basename($cmd));
-		}
-		$temp = tempnam(sys_get_temp_dir(), 'acroform_');
-		if ($temp === false) {
-			throw new \Exception("PDFDocument: pdftk failed because it's impossible to create a temporary file");
-		} else {
-			$pdfOut = $temp.'.pdf';
-			rename($temp, $pdfOut);
-			$cmdline = sprintf('%s "%s" output "%s"', $cmd, $filename, $pdfOut);
-			$ret = PDFtkBridge::run($cmdline, $pdfOut);
-			if ($ret["success"]) {
-				parent::load($ret["output"]);
-			}
-			@unlink($ret["output"]);
-		}
-	}
+    public function isLinearized()
+    {
+        $start = substr((string) $this->content, 0, 2048);
+        return str_contains($start, '/Linearized');
+    }
 
-	public function isLinearized() {
-		$start = substr($this->content, 0, 2048);
-		return strpos($start, '/Linearized') !== false;
-	}
+    public function hasObjectStreams()
+    {
+        $start = substr((string) $this->content, 0, 2048);
+        return str_contains($start, '/ObjStm');
+    }
 
-	public function hasObjectStreams() {
-		$start = substr($this->content, 0, 2048);
-		return strpos($start, '/ObjStm') !== false;
-	}
+    public function hasIncrementalUpdates()
+    {
+        $end = substr((string) $this->content, -512);
+        return str_contains($end, '/Prev');
+    }
 
-	public function hasIncrementalUpdates() {
-		$end = substr($this->content, -512);
-		return strpos($end, '/Prev') !== false;
-	}
+    public function isNeedAppearancesTrue()
+    {
+        return $this->needAppearancesTrue;
+    }
 
-	public function isNeedAppearancesTrue() {
-		return $this->needAppearancesTrue;
-	}
+    public function getEntries()
+    {
+        return $this->entries;
+    }
 
-	public function getEntries() {
-		return $this->entries;
-	}
+    public function getEntriesCount()
+    {
+        return count($this->entries);
+    }
 
-	public function getEntriesCount() {
-		return count($this->entries);
-	}
+    public function getEntry($line)
+    {
+        return $this->entries[$line];
+    }
 
-	public function getEntry($line) {
-		return $this->entries[$line];
-	}
+    public function setEntry($line, $entry)
+    {
+        $this->entries[$line] = $entry;
+    }
 
-	public function setEntry($line, $entry) {
-		$this->entries[$line] = $entry;
-	}
+    public function getField($fieldname)
+    {
+        $fieldname = StringToolBox::normalizeFieldName($fieldname);
+        return  $this->fields[$fieldname] ?? null;
+    }
 
-	public function getField($fieldname) {
-		$fieldname = StringToolBox::normalizeFieldName($fieldname);
-		return  isset($this->fields[$fieldname]) ?
-				$this->fields[$fieldname]:
-				null;
-	}
+    public function setField($fieldname, $field)
+    {
+        $fieldname                = StringToolBox::normalizeFieldName($fieldname);
+        $this->fields[$fieldname] = $field;
+    }
 
-	public function setField($fieldname, $field) {
-		$fieldname = StringToolBox::normalizeFieldName($fieldname);
-		$this->fields[$fieldname] = $field;
-	}
+    public function getFields()
+    {
+        return $this->fields;
+    }
 
-	public function getFields() {
-		return $this->fields;
-	}
+    public function getMetadata()
+    {
+        return $this->metadata;
+    }
 
-	public function getMetadata() {
-		return $this->metadata;
-	}
+    public function addMeta($key, $value)
+    {
+        $this->metadata[$key] = $value;
+    }
 
-	public function addMeta($key, $value) {
-		$this->metadata[$key] = $value;
-	}
+    public function getCrossReference()
+    {
+        return $this->crossReference;
+    }
 
-	public function getCrossReference() {
-		return $this->crossReference;
-	}
+    public function setCrossReference($crossReference)
+    {
+        $this->crossReference = $crossReference;
+    }
 
-	public function setCrossReference($crossReference) {
-		$this->crossReference = $crossReference;
-	}
+    public function getPositions()
+    {
+        return $this->positions;
+    }
 
-	public function getPositions() {
-		return $this->positions;
-	}
+    public function setPosition($objectId, $value)
+    {
+        $this->positions[$objectId] = $value;
+    }
 
-	public function setPosition($objectId, $value) {
-		$this->positions[$objectId] = $value;
-	}
+    public function getPosition($objectId)
+    {
+        return $this->positions[$objectId];
+    }
 
-	public function getPosition($objectId) {
-		return $this->positions[$objectId];
-	}
+    public function getOffsets()
+    {
+        return $this->offsets;
+    }
 
-	public function getOffsets() {
-		return $this->offsets;
-	}
+    public function setOffset($objectId, $value)
+    {
+        $this->offsets[$objectId] = $value;
+    }
 
-	public function setOffset($objectId, $value) {
-		$this->offsets[$objectId] = $value;
-	}
+    public function getShifts()
+    {
+        return $this->shifts;
+    }
 
-	public function getShifts() {
-		return $this->shifts;
-	}
+    public function setShift($objectId, $value)
+    {
+        $this->shifts[$objectId] = $value;
+    }
 
-	public function setShift($objectId, $value) {
-		$this->shifts[$objectId] = $value;
-	}
+    public function getGlobalShift()
+    {
+        return $this->globalShift;
+    }
 
-	public function getGlobalShift() {
-	    return $this->globalShift;
-	}
+    public function setGlobalShift($globalShift)
+    {
+        $this->globalShift = $globalShift;
+    }
 
-	public function setGlobalShift($globalShift) {
-		$this->globalShift = $globalShift;
-	}
+    public function addToGlobalShift($shift)
+    {
+        $this->globalShift += $shift;
+    }
 
-	public function addToGlobalShift($shift) {
-		$this->globalShift += $shift;
-	}
-
-	/**
-	 * Get current pdf content 
-	 *
-	 * @return string the pdf content
-	 **/
-	public function getBuffer() {
-		return implode("\n", $this->entries);
-	}
+    /**
+     * Get current pdf content
+     *
+     * @return string the pdf content
+     **/
+    public function getBuffer()
+    {
+        return implode("\n", $this->entries);
+    }
 
 }

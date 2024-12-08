@@ -1,4 +1,6 @@
-<?php declare(strict_types = 1);
+<?php
+
+declare(strict_types=1);
 
 /*
 The MIT License (MIT)
@@ -29,13 +31,17 @@ namespace acroforms\Filter;
 /*
  *  Dummy filter for unfiltered streams!
  */
-class StandardFilter implements FilterInterface {
+class StandardFilter implements FilterInterface
+{
+    #[\Override]
+    public function decode($data)
+    {
+        return $data;
+    }
 
-	public function decode($data) {
-		return $data;
-	}
-
-	public function encode($data) {
-		return $data;
-	}
+    #[\Override]
+    public function encode($data)
+    {
+        return $data;
+    }
 }
